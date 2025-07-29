@@ -5,15 +5,6 @@ struct NftItemInitAtDeployment {
     content: Cell<SnakeString>
 }
 
-struct (0x693d3950) RequestRoyaltyParams {
-    queryId: uint64
-}
-
-struct (0xa8cb00ad) ResponseRoyaltyParams {
-    queryId: uint64
-    royaltyParams: RoyaltyParams
-}
-
 struct (0x00000001) DeployNft {
     queryId: uint64
     itemIndex: uint64
@@ -21,20 +12,6 @@ struct (0x00000001) DeployNft {
     initParams: Cell<NftItemInitAtDeployment>
 }
 
-struct (0x00000002) BatchDeployNfts {
-    queryId: uint64
-    deployList: dict        // actually, a map of [itemIndex => BatchDeployDictItem]
-}
-
-struct BatchDeployDictItem {
-    attachTonAmount: coins
-    initParams: Cell<NftItemInitAtDeployment>
-}
-
-struct (0x00000003) ChangeCollectionAdmin {
-    queryId: uint64
-    newAdminAddress: address
-}
 
 struct (0x2fcb26a2) RequestStaticData {
     queryId: uint64

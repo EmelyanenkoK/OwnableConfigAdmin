@@ -13,11 +13,7 @@ fun deployNftItem(itemIndex: int, nftItemCode: cell, attachTonAmount: coins, ini
     deployMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
 }
 
-type AllowedMessageToNftCollection =
-    | RequestRoyaltyParams
-    | DeployNft
-    | BatchDeployNfts
-    | ChangeCollectionAdmin
+type AllowedMessageToNftCollection = DeployNft;
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy AllowedMessageToNftCollection.fromSlice(in.body);
@@ -35,54 +31,6 @@ fun onInternalMessage(in: InMessage) {
                 storage.save();
             }
         }
-
-        RequestRoyaltyParams => {
-            val storage = lazy NftCollectionStorage.load();
-            val respondMsg = createMessage({
-                bounce: false,
-                dest: in.senderAddress,
-                value: 0,
-                body: ResponseRoyaltyParams {
-                    queryId: msg.queryId,
-                    royaltyParams: storage.royaltyParams.load(),
-                }
-            });
-            respondMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
-        }
-
-        BatchDeployNfts => {
-            var storage = lazy NftCollectionStorage.load();
-            assert (in.senderAddress == storage.adminAddress) throw ERROR_NOT_FROM_ADMIN;
-
-            var counter = 0;
-            var deployList = msg.deployList;
-            while (true) {
-                var (itemIndex, valueSlice, found) = deployList.uDictDeleteFirstAndGet(64);
-                if (!found) {
-                    storage.save();
-                    return;
-                }
-                itemIndex = itemIndex!;     // tell the compiler that it's not-null (because found)
-
-                counter += 1;
-                assert (counter < 250) throw ERROR_BATCH_LIMIT_EXCEEDED;   // due to limits of action list size
-
-                assert (itemIndex <= storage.nextItemIndex) throw ERROR_NOT_FROM_ADMIN + counter;
-                val dictItem = BatchDeployDictItem.fromSlice(valueSlice!);
-                deployNftItem(itemIndex, storage.nftItemCode, dictItem.attachTonAmount, dictItem.initParams);
-                if (itemIndex == storage.nextItemIndex) {
-                    storage.nextItemIndex += 1;
-                }
-            }
-        }
-
-        ChangeCollectionAdmin => {
-            var storage = lazy NftCollectionStorage.load();
-            assert (in.senderAddress == storage.adminAddress) throw ERROR_NOT_FROM_ADMIN;
-            storage.adminAddress = msg.newAdminAddress;
-            storage.save();
-        }
-
         else => {
             // ignore empty messages, "wrong opcode" for others
             assert (in.body.isEmpty()) throw 0xFFFF
@@ -119,10 +67,6 @@ get fun get_nft_address_by_index(itemIndex: int): address {
     return address.fromValidBuilder(nftDeployed.buildAddress());
 }
 
-get fun royalty_params(): RoyaltyParams {
-    val storage = lazy NftCollectionStorage.load();
-    return storage.royaltyParams.load();
-}
 
 get fun get_nft_content(itemIndex: int, individualNftContent: Cell<SnakeString>): Cell<OffchainMetadataReply> {
     val storage = lazy NftCollectionStorage.load();
