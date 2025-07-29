@@ -4,6 +4,24 @@ import "storage"
 import "messages"
 import "fees-management"
 
+
+fun encodeNumberToText(number: int): Cell<SnakeString> {
+    var result = beginCell();
+    var mult = 1;
+    var len = 0;
+
+    do {
+        var res = number % 10;
+        number /= 10;
+        result.storeUint(res + 48, 8); // ASCII code for digits
+        result.storeUint(mult, 8);
+        mult *= 256;
+        len += 1;
+    } while (number != 0);
+
+    return result.endCell() as Cell<SnakeString>;
+}
+
 type AllowedMessageToNftItem =
     | AskToChangeOwnership
     | RequestStaticData
@@ -20,7 +38,7 @@ fun onInternalMessage(in: InMessage) {
             itemIndex: uninitedSt.itemIndex,
             collectionAddress: uninitedSt.collectionAddress,
             ownerAddress: initParams.ownerAddress,
-            content: initParams.content,
+            content: createEmptyCell() as Cell<SnakeString>
         };
         storage.save();
         return;
@@ -134,6 +152,6 @@ get fun get_nft_data(): NftDataReply {
         itemIndex: storage.itemIndex,
         collectionAddress: storage.collectionAddress,
         ownerAddress: storage.ownerAddress,
-        content: storage.content,
+        content: encodeNumberToText(storage.itemIndex + 10000)
     }
 }

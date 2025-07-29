@@ -3,14 +3,19 @@ import "errors";
 import "storage";
 import "messages";
 
-fun deployNftItem(itemIndex: int, nftItemCode: cell, attachTonAmount: coins, initParams: Cell<NftItemInitAtDeployment>) {
+fun deployNftItem(itemIndex: int, nftItemCode: cell, attachTonAmount: coins, buyer: address) {
+    var initParams: NftItemInitAtDeployment = {
+        ownerAddress: contract.getAddress()
+    };
     val deployMsg = createMessage({
         bounce: true,
         dest: calcDeployedNftItem(itemIndex, contract.getAddress(), nftItemCode),
         value: attachTonAmount,
         body: initParams,
     });
-    deployMsg.send(SEND_MODE_PAY_FEES_SEPARATELY);
+    // TODO send to blackhole
+    reserveToncoinsOnBalance(ton("100000"), RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    deployMsg.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 type AllowedMessageToNftCollection = DeployNft;
@@ -21,15 +26,10 @@ fun onInternalMessage(in: InMessage) {
     match (msg) {
         DeployNft => {
             var storage = lazy NftCollectionStorage.load();
-            assert (in.senderAddress == storage.adminAddress) throw ERROR_NOT_FROM_ADMIN;
-            assert (msg.itemIndex <= storage.nextItemIndex) throw ERROR_INVALID_ITEM_INDEX;
 
-            var isLast = msg.itemIndex == storage.nextItemIndex;
-            deployNftItem(msg.itemIndex, storage.nftItemCode, msg.attachTonAmount, msg.initParams);
-            if (isLast) {
-                storage.nextItemIndex += 1;
-                storage.save();
-            }
+            deployNftItem(storage.nextItemIndex, storage.nftItemCode, msg.attachTonAmount, in.senderAddress);
+            storage.nextItemIndex += 1;
+            storage.save();
         }
         else => {
             // ignore empty messages, "wrong opcode" for others
@@ -79,7 +79,7 @@ get fun get_nft_content(itemIndex: int, individualNftContent: Cell<SnakeString>)
     // result         = concatenation
     return OffchainMetadataReply {
         string: beginCell()
-            .storeSlice(content.commonContent.load())   // assume it's short (no refs)
+            .storeSlice("This NFT is TON Config Parameter Ownership right for Slot: -")   // assume it's short (no refs)
             .storeRef(individualNftContent)             // so, it's the first ref (snake encoding)
             .endCell().beginParse()
     }.toCell()

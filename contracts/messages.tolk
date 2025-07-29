@@ -2,14 +2,11 @@ import "storage"
 
 struct NftItemInitAtDeployment {
     ownerAddress: address
-    content: Cell<SnakeString>
 }
 
 struct (0x00000001) DeployNft {
     queryId: uint64
-    itemIndex: uint64
     attachTonAmount: coins
-    initParams: Cell<NftItemInitAtDeployment>
 }
 
 
