@@ -38,3 +38,9 @@ struct (0x5fcc3d14) AskToChangeOwnership {
     forwardTonAmount: coins
     forwardPayload: RemainingBitsAndRefs
 }
+
+struct (0x05138d92) UpdateSlotContent {
+    queryId: uint64,
+    index: int32,
+    newContent: cell
+}

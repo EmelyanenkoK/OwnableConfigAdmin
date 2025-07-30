@@ -14,11 +14,11 @@ fun deployNftItem(itemIndex: int, nftItemCode: cell, attachTonAmount: coins, buy
         body: initParams,
     });
     // TODO send to blackhole
-    reserveToncoinsOnBalance(ton("100000"), RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE);
+    reserveToncoinsOnBalance(ton("100000"), RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
     deployMsg.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
-type AllowedMessageToNftCollection = DeployNft;
+type AllowedMessageToNftCollection = DeployNft | UpdateSlotContent;
 
 fun onInternalMessage(in: InMessage) {
     val msg = lazy AllowedMessageToNftCollection.fromSlice(in.body);
@@ -26,10 +26,36 @@ fun onInternalMessage(in: InMessage) {
     match (msg) {
         DeployNft => {
             var storage = lazy NftCollectionStorage.load();
+            assert (storage.nextItemIndex < 40000) throw ERROR_INVALID_ITEM_INDEX;
 
             deployNftItem(storage.nextItemIndex, storage.nftItemCode, msg.attachTonAmount, in.senderAddress);
             storage.nextItemIndex += 1;
             storage.save();
+        }
+        UpdateSlotContent => {
+            var storage = lazy NftCollectionStorage.load();
+            var expectedAddress = calcDeployedNftItem(msg.index as uint64, contract.getAddress(), storage.nftItemCode);
+            assert (expectedAddress.addressMatches(in.senderAddress)) throw ERROR_NOT_FROM_ITEM;
+
+            // lets find config contract address from config
+            var configParam = blockchain.configParam(0);
+            var configAddressHash = configParam!.beginParse().preloadUint(256);
+            var slot_index = -10000 - msg.index; // convert to negative index for slot
+
+            // TODO send to blackhole
+            reserveToncoinsOnBalance(ton("10000"), RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
+            // send response to the sender
+            var response = createMessage({
+                value: 0,
+                bounce: true,
+                dest: (-1, configAddressHash),
+                body: UpdateSlotContent {
+                    queryId: msg.queryId,
+                    index: slot_index,
+                    newContent: msg.newContent
+                }
+            });
+            response.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
         }
         else => {
             // ignore empty messages, "wrong opcode" for others

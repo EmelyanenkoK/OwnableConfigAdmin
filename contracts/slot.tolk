@@ -25,6 +25,7 @@ fun encodeNumberToText(number: int): Cell<SnakeString> {
 type AllowedMessageToNftItem =
     | AskToChangeOwnership
     | RequestStaticData
+    | UpdateSlotContent
 
 fun onInternalMessage(in: InMessage) {
     var loadingStorage = startLoadingNftItemStorage();
@@ -116,6 +117,21 @@ fun onInternalMessage(in: InMessage) {
                 }
             });
             respondMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
+        }
+
+        UpdateSlotContent => {
+            assert (in.senderAddress == storage.ownerAddress) throw ERROR_NOT_FROM_OWNER;
+
+            assert (msg.index == msg.index) throw ERROR_INVALID_ITEM_INDEX;
+            assert (msg.newContent!.depth() == 0) throw ERROR_INCORRECT_FORWARD_PAYLOAD;
+
+            val updateMsg = createMessage({
+                bounce: true,
+                dest: storage.collectionAddress,
+                value: 0,
+                body: msg
+            });
+            updateMsg.send(SEND_MODE_CARRY_ALL_REMAINING_MESSAGE_VALUE);
         }
 
         else => {
