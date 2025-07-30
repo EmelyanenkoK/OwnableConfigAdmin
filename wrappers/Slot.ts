@@ -60,8 +60,9 @@ export class Slot implements Contract {
     }
 
 
-    async updateSlotContent(provider: ContractProvider, via: Sender, opts: {
+    async sendUpdateSlotContent(provider: ContractProvider, via: Sender, opts: {
         queryId?: number;
+        index: number;
         content: Cell;
     }) {
         await provider.internal(via, {
@@ -70,6 +71,7 @@ export class Slot implements Contract {
             body: beginCell()
                 .storeUint(Slot.OPCODES.UPDATE_SLOT_CONTENT, 32)
                 .storeUint(opts.queryId ?? 0, 64)
+                .storeInt(opts.index, 32)
                 .storeRef(opts.content)
                 .endCell()
         });

@@ -1,9 +1,13 @@
-import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Sender, SendMode, toNano } from '@ton/core';
+import { Address, beginCell, Cell, Contract, contractAddress, ContractProvider, Sender, SendMode, toNano, TupleBuilder } from '@ton/core';
 
-export type AdminConfig = {};
+export type AdminConfig = {
+    nftItemCode: Cell;
+};
 
 export function adminConfigToCell(config: AdminConfig): Cell {
-    return beginCell().endCell();
+    return beginCell().storeUint(0, 64)
+                      .storeRef(config.nftItemCode)
+           .endCell();
 }
 
 export class Admin implements Contract {
@@ -17,7 +21,7 @@ export class Admin implements Contract {
         return new Admin(address);
     }
 
-    static createFromConfig(config: AdminConfig, code: Cell, workchain = 0) {
+    static createFromConfig(config: AdminConfig, code: Cell, workchain = -1) {
         const data = adminConfigToCell(config);
         const init = { code, data };
         return new Admin(contractAddress(workchain, init), init);
@@ -40,7 +44,7 @@ export class Admin implements Contract {
         },
     ) {
         await provider.internal(via, {
-            value: toNano('10000') + opts.attachTonAmount,
+            value: toNano('100000') + opts.attachTonAmount,
             sendMode: SendMode.PAY_GAS_SEPARATELY,
             body: beginCell()
                 .storeUint(Admin.OPCODES.DEPLOY_NFT, 32)
@@ -48,5 +52,14 @@ export class Admin implements Contract {
                 .storeCoins(opts.attachTonAmount)
                 .endCell(),
         });
+    }
+
+    async getSlotAddressByIndex(provider: ContractProvider, index: number): Promise<Address> {
+        const builder = new TupleBuilder();
+        builder.writeNumber(index);
+
+        const { stack } = await provider.get('get_nft_address_by_index', builder.build());
+
+        return stack.readAddress();
     }
 }

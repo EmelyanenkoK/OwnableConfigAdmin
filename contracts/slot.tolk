@@ -4,21 +4,20 @@ import "storage"
 import "messages"
 import "fees-management"
 
-
 fun encodeNumberToText(number: int): Cell<SnakeString> {
-    var result = beginCell();
     var mult = 1;
     var len = 0;
+    var value = 0;
 
     do {
         var res = number % 10;
+        value += (res + 48) * mult;
         number /= 10;
-        result.storeUint(res + 48, 8); // ASCII code for digits
-        result.storeUint(mult, 8);
         mult *= 256;
         len += 1;
     } while (number != 0);
-
+    var result = beginCell();
+    result.storeUint(value, 8 * len);
     return result.endCell() as Cell<SnakeString>;
 }
 

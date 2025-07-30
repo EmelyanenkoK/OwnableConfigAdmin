@@ -3,13 +3,13 @@ import "errors";
 import "storage";
 import "messages";
 
-const int slotPrice = ton("100000");
-const int slotUpdatePrice = ton("10000");
-const int maxItemIndex = 40000;
+const slotPrice: int = ton("100000");
+const slotUpdatePrice: int = ton("10000");
+const maxItemIndex: int = 40000;
 
 fun deployNftItem(itemIndex: int, nftItemCode: cell, attachTonAmount: coins, buyer: address) {
     var initParams: NftItemInitAtDeployment = {
-        ownerAddress: contract.getAddress()
+        ownerAddress: buyer
     };
     val deployMsg = createMessage({
         bounce: true,
@@ -19,7 +19,7 @@ fun deployNftItem(itemIndex: int, nftItemCode: cell, attachTonAmount: coins, buy
     });
     // TODO send to blackhole
     reserveToncoinsOnBalance(slotPrice, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
-    deployMsg.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
+    deployMsg.send(SEND_MODE_CARRY_ALL_BALANCE | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
 type AllowedMessageToNftCollection = DeployNft | UpdateSlotContent;
@@ -76,18 +76,17 @@ struct CollectionDataReply {
     adminAddress: address
 }
 
-struct (0x01) OffchainMetadataReply {
-    string: SnakeString
+struct (0x00) OnchainMetadataReply {
+    data: dict
 }
 
 get fun get_collection_data(): CollectionDataReply {
     val storage = lazy NftCollectionStorage.load();
-    val content = lazy storage.content.load();
 
     return {
         nextItemIndex: storage.nextItemIndex,
-        collectionMetadata: content.collectionMetadata,
-        adminAddress: storage.adminAddress,
+        collectionMetadata: createEmptyCell(),
+        adminAddress: createAddressNone()
     }
 }
 
@@ -98,19 +97,27 @@ get fun get_nft_address_by_index(itemIndex: int): address {
 }
 
 
-get fun get_nft_content(itemIndex: int, individualNftContent: Cell<SnakeString>): Cell<OffchainMetadataReply> {
+get fun get_nft_content(itemIndex: int, individualNftContent: Cell<SnakeString>): Cell<OnchainMetadataReply> {
     val storage = lazy NftCollectionStorage.load();
-    val content = lazy storage.content.load();
 
     // construct a responce from "common content" and "individual content";
     // for example:
     // common content = "https://site.org/my-collection/"
     // individual nft = "my-picture-123.png"  (probably, a long string, snake-encoded)
     // result         = concatenation
-    return OffchainMetadataReply {
-        string: beginCell()
-            .storeSlice("This NFT is TON Config Parameter Ownership right for Slot: -")   // assume it's short (no refs)
-            .storeRef(individualNftContent)             // so, it's the first ref (snake encoding)
-            .endCell().beginParse()
+    var propertiesDict: dict = createEmptyDict();
+    propertiesDict.uDictSetRef(256, stringSha256("name"),
+       beginCell()
+            .storeUint(0, 8)
+            .storeSlice("Slot: -")   
+            .storeSlice(individualNftContent.beginParse())
+            .endCell());
+    propertiesDict.uDictSetRef(256, stringSha256("description"),
+         beginCell()
+            .storeUint(0, 8) 
+            .storeSlice("This NFT represents TON Config Parameter Ownership")
+            .endCell());
+    return OnchainMetadataReply {
+        data: propertiesDict
     }.toCell()
 }

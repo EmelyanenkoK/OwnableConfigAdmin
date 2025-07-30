@@ -25,11 +25,8 @@ struct RoyaltyParams {
 }
 
 struct NftCollectionStorage {
-    adminAddress: address
     nextItemIndex: uint64
-    content: Cell<CollectionContent>
     nftItemCode: cell
-    royaltyParams: Cell<RoyaltyParams>
 }
 
 struct CollectionContent {
