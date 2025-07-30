@@ -39,7 +39,7 @@ struct (0x5fcc3d14) AskToChangeOwnership {
     forwardPayload: RemainingBitsAndRefs
 }
 
-struct (0x05138d92) UpdateSlotContent {
+struct (0x50526e56) UpdateSlotContent {
     queryId: uint64,
     index: int32,
     newContent: cell

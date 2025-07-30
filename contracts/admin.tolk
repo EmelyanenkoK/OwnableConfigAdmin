@@ -3,6 +3,10 @@ import "errors";
 import "storage";
 import "messages";
 
+const int slotPrice = ton("100000");
+const int slotUpdatePrice = ton("10000");
+const int maxItemIndex = 40000;
+
 fun deployNftItem(itemIndex: int, nftItemCode: cell, attachTonAmount: coins, buyer: address) {
     var initParams: NftItemInitAtDeployment = {
         ownerAddress: contract.getAddress()
@@ -14,7 +18,7 @@ fun deployNftItem(itemIndex: int, nftItemCode: cell, attachTonAmount: coins, buy
         body: initParams,
     });
     // TODO send to blackhole
-    reserveToncoinsOnBalance(ton("100000"), RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
+    reserveToncoinsOnBalance(slotPrice, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
     deployMsg.send(SEND_MODE_PAY_FEES_SEPARATELY | SEND_MODE_BOUNCE_ON_ACTION_FAIL);
 }
 
@@ -26,7 +30,7 @@ fun onInternalMessage(in: InMessage) {
     match (msg) {
         DeployNft => {
             var storage = lazy NftCollectionStorage.load();
-            assert (storage.nextItemIndex < 40000) throw ERROR_INVALID_ITEM_INDEX;
+            assert (storage.nextItemIndex < maxItemIndex) throw ERROR_INVALID_ITEM_INDEX;
 
             deployNftItem(storage.nextItemIndex, storage.nftItemCode, msg.attachTonAmount, in.senderAddress);
             storage.nextItemIndex += 1;
@@ -43,7 +47,7 @@ fun onInternalMessage(in: InMessage) {
             var slot_index = -10000 - msg.index; // convert to negative index for slot
 
             // TODO send to blackhole
-            reserveToncoinsOnBalance(ton("10000"), RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
+            reserveToncoinsOnBalance(slotUpdatePrice, RESERVE_MODE_INCREASE_BY_ORIGINAL_BALANCE | RESERVE_MODE_BOUNCE_ON_ACTION_FAIL);
             // send response to the sender
             var response = createMessage({
                 value: 0,
